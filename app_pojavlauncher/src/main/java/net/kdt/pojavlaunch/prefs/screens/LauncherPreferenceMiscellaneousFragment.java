@@ -2,45 +2,41 @@ package net.kdt.pojavlaunch.prefs.screens;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AlertDialog;
+import androidx.annotation.Nullable;
 import androidx.preference.Preference;
 
 import git.artdeell.mojo.R;
 
 import net.kdt.pojavlaunch.LauncherActivity;
-import net.kdt.pojavlaunch.PojavApplication;
-import net.kdt.pojavlaunch.Tools;
-import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
-import net.kdt.pojavlaunch.tasks.DataMigrator;
+import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import net.kdt.pojavlaunch.utils.GLInfoUtils;
 import net.kdt.pojavlaunch.utils.RendererCompatUtil;
 
-import org.apache.commons.io.FileUtils;
-
-import java.io.File;
-import java.io.IOException;
-
 public class LauncherPreferenceMiscellaneousFragment extends LauncherPreferenceFragment {
 
-    private final ActivityResultLauncher<Uri> mMigrateLauncher = registerForActivityResult(
-            new ActivityResultContracts.OpenDocumentTree(), (uri) -> {
-                if(uri != null) {
-                    new AlertDialog.Builder(getLauncherActivity())
-                            .setTitle(R.string.migration_progress_warning_title)
-                            .setMessage(R.string.migration_progress_warning_summary)
-                            .setPositiveButton(android.R.string.ok, (d, w) -> new DataMigrator(getLauncherActivity(), uri).migrateData())
-                            .setNegativeButton(android.R.string.cancel, null)
-                            .show();
-                }
-            }
-    );
+    private ActivityResultLauncher<String[]> mPickImageLauncher;
+    private ActivityResultLauncher<String[]> mPickVideoLauncher;
+    private ActivityResultLauncher<String[]> mPickMusicLauncher;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // Must be registered before STARTED, so it's done here rather than in onCreatePreferences
+        mPickImageLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(),
+                uri -> handlePickedUri(uri, "backgroundImageUri", "image"));
+        mPickVideoLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(),
+                uri -> handlePickedUri(uri, "backgroundVideoUri", "video"));
+        mPickMusicLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(),
+                uri -> handlePickedUri(uri, "backgroundMusicUri", null));
+    }
 
     @Override
     public void onCreatePreferences(Bundle b, String str) {
@@ -50,23 +46,47 @@ public class LauncherPreferenceMiscellaneousFragment extends LauncherPreferenceF
         PackageManager packageManager = driverPreference.getContext().getPackageManager();
         boolean supportsTurnip = RendererCompatUtil.checkVulkanSupport(packageManager) && GLInfoUtils.getGlInfo().isAdreno();
         driverPreference.setVisible(supportsTurnip);
-        Preference importPreference = requirePreference("runDataMigration");
-        importPreference.setOnPreferenceClickListener(preference -> {
-            if(ProgressKeeper.getTaskCount() > 0) {
-                Toast.makeText(getContext(), R.string.tasks_ongoing, Toast.LENGTH_SHORT).show();
-                return true;
-            }
-            mMigrateLauncher.launch(null);
+        setupMicrophoneRequestPreference();
+        setupPersonalizationPreferences();
+    }
+
+    private void setupPersonalizationPreferences() {
+        requirePreference("pickBackgroundImage").setOnPreferenceClickListener(p -> {
+            mPickImageLauncher.launch(new String[]{"image/*"});
             return true;
         });
-        setupCacheClearPreference();
-        setupMicrophoneRequestPreference();
-        updateVisibility();
+        requirePreference("pickBackgroundVideo").setOnPreferenceClickListener(p -> {
+            mPickVideoLauncher.launch(new String[]{"video/*"});
+            return true;
+        });
+        requirePreference("pickBackgroundMusic").setOnPreferenceClickListener(p -> {
+            mPickMusicLauncher.launch(new String[]{"audio/*"});
+            return true;
+        });
+    }
+
+    /**
+     * Persists read access to the picked file across reboots (needed since we only hold
+     * a content:// Uri, not a copy of the file), saves it to preferences, and, if provided,
+     * switches the "backgroundType" preference to match what was just picked (so choosing
+     * a video, for example, automatically shows video instead of a stale "image" selection).
+     */
+    private void handlePickedUri(@Nullable Uri uri, String prefKey, @Nullable String backgroundTypeToSet) {
+        if (uri == null) return;
+        try {
+            requireContext().getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {
+            // Some providers don't support persistable permissions; the Uri may stop working after a reboot.
+        }
+        SharedPreferences.Editor editor = getPreferenceManager().getSharedPreferences().edit();
+        editor.putString(prefKey, uri.toString());
+        if (backgroundTypeToSet != null) editor.putString("backgroundType", backgroundTypeToSet);
+        editor.apply();
+        LauncherPreferences.loadPreferences(getContext());
     }
 
     private void updateVisibility(){
         requirePreference("microphoneAccessRequest").setVisible(!getLauncherActivity().checkForPermissionRationale(33, Manifest.permission.RECORD_AUDIO));
-        requirePreference("clearMetadataCache").setVisible(new File(Tools.DIR_CACHE, "string_cache").exists());
     }
 
     @Override
@@ -85,27 +105,6 @@ public class LauncherPreferenceMiscellaneousFragment extends LauncherPreferenceF
         } else {
             mRequestMicrophonePermissionPreference.setVisible(false);
         }
-    }
-    private void setupCacheClearPreference() {
-        Preference clearPreference = requirePreference("clearMetadataCache");
-        clearPreference.setOnPreferenceClickListener(preference -> {
-            if(ProgressKeeper.getTaskCount() > 0) {
-                Toast.makeText(getContext(), R.string.tasks_ongoing, Toast.LENGTH_SHORT).show();
-                return true;
-            }
-            PojavApplication.sExecutorService.submit(() -> {
-                try {
-                    FileUtils.deleteDirectory(new File(Tools.DIR_CACHE, "string_cache"));
-                } catch (IOException e) {
-                    Tools.showErrorRemote(getLauncherActivity(), R.string.preference_metadata_clear_fail, e);
-                    return;
-                }
-                Tools.runOnUiThread(() -> {
-                    Toast.makeText(getLauncherActivity(), R.string.preference_metadata_clear_complete, Toast.LENGTH_LONG).show();
-                    updateVisibility();
-                });
-            });
-            return true;
-        });
+        updateVisibility();
     }
 }
