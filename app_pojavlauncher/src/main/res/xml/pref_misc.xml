@@ -45,22 +45,50 @@
             android:icon="@drawable/ic_microphone"
             android:title="@string/preference_microphone_access_title"
             android:summary="@string/preference_microphone_access_description" />
-        <Preference
-            android:key="runDataMigration"
-            android:icon="@drawable/ic_px_data_import"
-            android:title="@string/preference_data_migration_title"
-            android:summary="@string/preference_data_migration_summary" />
-        <Preference
-            android:key="clearMetadataCache"
-            android:title="@string/preference_metadata_clear"
-            android:summary="@string/preference_metadata_clear_summary" />
-        <SwitchPreference
-            android:defaultValue="true"
-            android:icon="@drawable/ic_px_memory_warning"
-            android:key="showMemoryWarning"
-            android:title="@string/preference_show_memory_warning_title"
-            android:summary="@string/preference_show_memory_warning_summary"/>
 
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/preference_category_personalization">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:icon="@drawable/ic_px_book"
+            android:key="backgroundMediaEnabled"
+            android:title="@string/preference_background_enable_title"
+            android:summary="@string/preference_background_enable_description" />
+
+        <androidx.preference.ListPreference
+            android:defaultValue="image"
+            android:icon="@drawable/ic_px_folder"
+            android:key="backgroundType"
+            android:entries="@array/background_type_names"
+            android:entryValues="@array/background_type_values"
+            android:title="@string/preference_background_type_title"
+            app2:useSimpleSummaryProvider="true" />
+
+        <Preference
+            android:key="pickBackgroundImage"
+            android:icon="@drawable/ic_px_folder"
+            android:title="@string/preference_background_pick_image_title"
+            android:summary="@string/preference_background_pick_image_description" />
+
+        <Preference
+            android:key="pickBackgroundVideo"
+            android:icon="@drawable/ic_px_folder"
+            android:title="@string/preference_background_pick_video_title"
+            android:summary="@string/preference_background_pick_video_description" />
+
+        <Preference
+            android:key="pickBackgroundMusic"
+            android:icon="@drawable/ic_microphone"
+            android:title="@string/preference_background_pick_music_title"
+            android:summary="@string/preference_background_pick_music_description" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:icon="@drawable/ic_microphone"
+            android:key="muteBackgroundMusic"
+            android:title="@string/preference_background_mute_music_title"
+            android:summary="@string/preference_background_mute_music_description" />
     </PreferenceCategory>
 
 </PreferenceScreen>
