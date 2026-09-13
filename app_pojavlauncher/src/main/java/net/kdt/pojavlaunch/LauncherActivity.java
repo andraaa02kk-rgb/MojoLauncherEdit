@@ -4,14 +4,18 @@ import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 import android.Manifest;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.system.Os;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -25,6 +29,7 @@ import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager;
 
 import com.kdt.mcgui.ProgressLayout;
+import com.kdt.mcgui.ScaledVideoView;
 
 import net.kdt.pojavlaunch.authenticator.accounts.Accounts;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
@@ -61,12 +66,21 @@ public class LauncherActivity extends BaseActivity {
     private NotificationManager mNotificationManager;
     private static ActivityResultLauncher<String> mRequestPermissionLauncher;
 
+    /* Personalization: custom menu background (image/video) and background music */
+    private ImageView mBackgroundImageView;
+    private FrameLayout mBackgroundVideoContainer;
+    private ScaledVideoView mBackgroundVideoView;
+    private View mBackgroundScrim;
+    private MediaPlayer mBackgroundMusicPlayer;
+
     /* Allows to switch from one button "type" to another */
     private final FragmentManager.FragmentLifecycleCallbacks mFragmentCallbackListener = new FragmentManager.FragmentLifecycleCallbacks() {
         @Override
         public void onFragmentResumed(@NonNull FragmentManager fm, @NonNull Fragment f) {
             mSettingsButton.setImageDrawable(ContextCompat.getDrawable(getBaseContext(), f instanceof MainMenuFragment
                     ? R.drawable.ic_px_sliders : R.drawable.ic_px_home));
+            // Re-apply personalization in case the user just changed it in the settings screen
+            if(f instanceof MainMenuFragment) refreshPersonalization();
         }
     };
 
@@ -177,6 +191,7 @@ public class LauncherActivity extends BaseActivity {
 
         getWindow().setBackgroundDrawable(null);
         bindViews();
+        refreshPersonalization();
         mRequestPermissionLauncher = this.registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),
                 isAllowed -> {
@@ -184,9 +199,6 @@ public class LauncherActivity extends BaseActivity {
                 }
         );
         checkNotificationPermission();
-        if(LauncherPreferences.PREF_MIGRATION_NOTICE)
-            PojavApplication.sExecutorService.submit(this::checkPreviousInstalls);
-
         mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         ProgressKeeper.addTaskCountListener(mDoubleLaunchPreventionListener);
         ProgressKeeper.addTaskCountListener((mProgressServiceKeeper = new ProgressServiceKeeper(this)));
@@ -206,7 +218,6 @@ public class LauncherActivity extends BaseActivity {
         mProgressLayout.observe(ProgressLayout.AUTHENTICATE);
         mProgressLayout.observe(ProgressLayout.DOWNLOAD_VERSION_LIST);
         mProgressLayout.observe(ProgressLayout.INSTANCE_INSTALL);
-        mProgressLayout.observe(ProgressLayout.DATA_MIGRATION);
     }
 
     @Override
@@ -214,12 +225,14 @@ public class LauncherActivity extends BaseActivity {
         super.onResume();
         ContextExecutor.setActivity(this);
         InstanceInstaller.postInstallCheck(this);
+        resumeBackgroundMedia();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         ContextExecutor.clearActivity();
+        pauseBackgroundMedia();
     }
 
     @Override
@@ -239,6 +252,8 @@ public class LauncherActivity extends BaseActivity {
         ExtraCore.removeExtraListenerFromValue(ExtraConstants.LAUNCH_GAME, mLaunchGameListener);
 
         getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(mFragmentCallbackListener);
+        releaseBackgroundMusic();
+        if(mBackgroundVideoView != null) mBackgroundVideoView.stopPlayback();
     }
 
     /** Custom implementation to feel more natural when a backstack isn't present */
@@ -293,23 +308,6 @@ public class LauncherActivity extends BaseActivity {
         showNotificationPermissionReasoning();
     }
 
-    // Call async
-    private void checkPreviousInstalls(){
-        final String[] packages = {"git.artdeell.mojo", "git.artdeell.mojo.debug", "git.artdeell.mojo.pub"};
-        for(String s : packages){
-            Intent i = getPackageManager().getLaunchIntentForPackage(s);
-            if(i == null) continue;
-            Tools.runOnUiThread(() ->
-                    new AlertDialog.Builder(this)
-                        .setTitle(R.string.migration_progress_warning_title)
-                        .setMessage(R.string.migration_notice)
-                        .setPositiveButton(android.R.string.ok, (d, button) -> LauncherPreferences.DEFAULT_PREF.edit().putBoolean("migrationNotice", false).apply())
-                        .setOnDismissListener(d -> LauncherPreferences.PREF_MIGRATION_NOTICE = false)
-                        .show());
-            break;
-        }
-    }
-
     private void showNotificationPermissionReasoning() {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.notification_permission_dialog_title)
@@ -332,5 +330,125 @@ public class LauncherActivity extends BaseActivity {
         mFragmentView = findViewById(R.id.container_fragment);
         mSettingsButton = findViewById(R.id.setting_button);
         mProgressLayout = findViewById(R.id.progress_layout);
+        mBackgroundImageView = findViewById(R.id.launcher_background_image);
+        mBackgroundVideoContainer = findViewById(R.id.launcher_background_video_container);
+        mBackgroundVideoView = findViewById(R.id.launcher_background_video);
+        mBackgroundScrim = findViewById(R.id.launcher_background_scrim);
+    }
+
+    /* ---------------- Personalization: custom menu background & background music ---------------- */
+
+    /** Reads the current preferences and shows/hides/starts the custom background image, video and music accordingly. */
+    private void refreshPersonalization() {
+        boolean enabled = LauncherPreferences.PREF_BACKGROUND_MEDIA_ENABLED;
+        boolean wantsImage = enabled && "image".equals(LauncherPreferences.PREF_BACKGROUND_TYPE)
+                && LauncherPreferences.PREF_BACKGROUND_IMAGE_URI != null;
+        boolean wantsVideo = enabled && "video".equals(LauncherPreferences.PREF_BACKGROUND_TYPE)
+                && LauncherPreferences.PREF_BACKGROUND_VIDEO_URI != null;
+
+        stopBackgroundVideo();
+
+        if(wantsImage) {
+            try {
+                mBackgroundImageView.setImageURI(Uri.parse(LauncherPreferences.PREF_BACKGROUND_IMAGE_URI));
+                mBackgroundImageView.setVisibility(View.VISIBLE);
+            } catch (Exception e) {
+                mBackgroundImageView.setVisibility(View.GONE);
+                wantsImage = false;
+            }
+        } else {
+            mBackgroundImageView.setVisibility(View.GONE);
+        }
+
+        if(wantsVideo) {
+            startBackgroundVideo(Uri.parse(LauncherPreferences.PREF_BACKGROUND_VIDEO_URI));
+        } else {
+            mBackgroundVideoContainer.setVisibility(View.GONE);
+        }
+
+        // Let the custom background show through the menu buttons area when a background is active
+        boolean mediaActive = wantsImage || wantsVideo;
+        View menuRoot = findViewById(R.id.fragment_menu_main);
+        if(menuRoot != null) {
+            menuRoot.setBackgroundColor(mediaActive ? Color.TRANSPARENT : ContextCompat.getColor(this, R.color.background_app));
+        }
+        if(mBackgroundScrim != null) {
+            mBackgroundScrim.setVisibility(mediaActive ? View.VISIBLE : View.GONE);
+        }
+
+        refreshBackgroundMusic();
+    }
+
+    private void startBackgroundVideo(Uri videoUri) {
+        try {
+            mBackgroundVideoView.setVideoURI(videoUri);
+            mBackgroundVideoView.setOnPreparedListener(mp -> {
+                mp.setLooping(true);
+                mp.setVolume(0f, 0f); // The video's own audio track is muted; background music is handled separately
+                mBackgroundVideoView.setVideoSize(mp.getVideoWidth(), mp.getVideoHeight());
+                mBackgroundVideoView.start();
+            });
+            mBackgroundVideoView.setOnErrorListener((mp, what, extra) -> {
+                mBackgroundVideoContainer.setVisibility(View.GONE);
+                return true;
+            });
+            mBackgroundVideoContainer.setVisibility(View.VISIBLE);
+        } catch (Exception e) {
+            mBackgroundVideoContainer.setVisibility(View.GONE);
+        }
+    }
+
+    private void stopBackgroundVideo() {
+        try {
+            if(mBackgroundVideoView != null && mBackgroundVideoView.isPlaying()) mBackgroundVideoView.stopPlayback();
+        } catch (Exception ignored) {}
+    }
+
+    private void refreshBackgroundMusic() {
+        releaseBackgroundMusic();
+        if(!LauncherPreferences.PREF_BACKGROUND_MEDIA_ENABLED || LauncherPreferences.PREF_MUTE_BACKGROUND_MUSIC) return;
+        String musicUriString = LauncherPreferences.PREF_BACKGROUND_MUSIC_URI;
+        if(musicUriString == null) return;
+        try {
+            mBackgroundMusicPlayer = new MediaPlayer();
+            mBackgroundMusicPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build());
+            mBackgroundMusicPlayer.setDataSource(this, Uri.parse(musicUriString));
+            mBackgroundMusicPlayer.setLooping(true);
+            mBackgroundMusicPlayer.setOnPreparedListener(MediaPlayer::start);
+            mBackgroundMusicPlayer.prepareAsync();
+        } catch (Exception e) {
+            releaseBackgroundMusic();
+        }
+    }
+
+    private void releaseBackgroundMusic() {
+        if(mBackgroundMusicPlayer != null) {
+            try { mBackgroundMusicPlayer.release(); } catch (Exception ignored) {}
+            mBackgroundMusicPlayer = null;
+        }
+    }
+
+    /** Called from onResume: resumes playback without restarting the video/music from the beginning. */
+    private void resumeBackgroundMedia() {
+        if(mBackgroundVideoContainer != null && mBackgroundVideoContainer.getVisibility() == View.VISIBLE
+                && mBackgroundVideoView != null) {
+            mBackgroundVideoView.start();
+        }
+        if(mBackgroundMusicPlayer != null && !mBackgroundMusicPlayer.isPlaying()) {
+            try { mBackgroundMusicPlayer.start(); } catch (Exception ignored) {}
+        }
+    }
+
+    /** Called from onPause: pauses playback (rather than releasing) so it can resume seamlessly. */
+    private void pauseBackgroundMedia() {
+        try {
+            if(mBackgroundVideoView != null && mBackgroundVideoView.isPlaying()) mBackgroundVideoView.pause();
+        } catch (Exception ignored) {}
+        if(mBackgroundMusicPlayer != null && mBackgroundMusicPlayer.isPlaying()) {
+            try { mBackgroundMusicPlayer.pause(); } catch (Exception ignored) {}
+        }
     }
 }
