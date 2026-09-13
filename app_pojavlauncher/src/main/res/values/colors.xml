@@ -13,4 +13,13 @@
 
     <color name="primary_text">#FFFFFF</color>
     <color name="secondary_text">#B2B2B2</color>
+
+    <!-- Minimalist "glass" personalization palette -->
+    <color name="accent_color">#0A84FF</color>
+    <color name="accent_color_pressed">#0768CC</color>
+    <color name="accent_color_disabled">#664A90D9</color>
+    <color name="glass_panel_fill">#B3161616</color>
+    <color name="glass_panel_border">#1FFFFFFF</color>
+    <color name="glass_card_fill">#14FFFFFF</color>
+    <color name="glass_card_fill_pressed">#26FFFFFF</color>
 </resources>

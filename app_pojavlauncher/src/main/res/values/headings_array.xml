@@ -50,4 +50,13 @@
         <item>bmclapi</item>
     </string-array>
 
+    <string-array name="background_type_names">
+        <item>@string/preference_background_type_image</item>
+        <item>@string/preference_background_type_video</item>
+    </string-array>
+    <string-array name="background_type_values">
+        <item>image</item>
+        <item>video</item>
+    </string-array>
+
 </resources>

@@ -31,4 +31,10 @@
     <dimen name="fragment_padding_medium">@dimen/_10sdp</dimen>
     <!-- Misc paddings -->
     <dimen name="profile_editor_image_padding">@dimen/padding_small</dimen>
+
+    <!-- Minimalist "glass" personalization corner radii -->
+    <dimen name="corner_radius_card">14dp</dimen>
+    <dimen name="corner_radius_panel">22dp</dimen>
+    <dimen name="corner_radius_pill">30dp</dimen>
+    <dimen name="glass_border_width">1dp</dimen>
 </resources>
