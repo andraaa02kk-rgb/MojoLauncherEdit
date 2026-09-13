@@ -508,3 +508,9 @@
     <string name="preference_keyboard_autopan_title">Enable keyboard panning</string>
     <string name="preference_keyboard_autopan_summary">Allows on-screen keyboard to move the game window instead of overlapping it if the last touch was below the visible zone. Has no effect on custom control layout buttons with the same function</string>
 </resources>
+<string name="loading_screen_title">Loading...</string>
+    <string name="loading_screen_warning">This may take a while</string>
+    <string name="preference_button_transparency">Button transparency</string>
+    <string name="preference_button_transparency_summary">Adjust the transparency of control buttons</string>
+    <string name="preference_alsoft_opensl_title">OpenAL Soft OpenSL backend</string>
+    <string name="preference_alsoft_opensl_summary">Use OpenAL Soft with OpenSL backend for audio</string>
