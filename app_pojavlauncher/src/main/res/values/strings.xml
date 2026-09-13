@@ -505,12 +505,10 @@
     <string name="preference_sysmem_title">Force rendering into the system memory</string>
     <string name="preference_sysmem_summary">Forces Freedreno to render directly into the system memory. Enable if performance is low or you experience rendering issues</string>
     <string name="preference_category_keyboard">Keyboard settings</string>
-    <string name="preference_keyboard_autopan_title">Enable keyboard panning</string>
-    <string name="preference_keyboard_autopan_summary">Allows on-screen keyboard to move the game window instead of overlapping it if the last touch was below the visible zone. Has no effect on custom control layout buttons with the same function</string>
-</resources>
-<string name="loading_screen_title">Loading...</string>
-    <string name="loading_screen_warning">This may take a while</string>
-    <string name="preference_button_transparency">Button transparency</string>
-    <string name="preference_button_transparency_summary">Adjust the transparency of control buttons</string>
-    <string name="preference_alsoft_opensl_title">OpenAL Soft OpenSL backend</string>
-    <string name="preference_alsoft_opensl_summary">Use OpenAL Soft with OpenSL backend for audio</string>
+    <string name="preference_keyboard_autopan_title">Enable keyboard panning</
+    <string name="preference_keyboard_autopan_summary">Allows on-screen keyboard to move the game window instead of overlapping it if the last touch was below the visible zone. Has no effect on c[...]  
+    <string name="loading_screen_title">Loading...</string>       <string name="loading_screen_warning">This may take a while</string>   <string name="preference_button_transparency">Button transparency</string>  
+    <string name="preference_button_transparency_summary">Adjust the transparency of control buttons</string>  
+    <string name="preference_alsoft_opensl_title">OpenAL Soft OpenSL backend</string>  
+    <string name="preference_alsoft_opensl_summary">Use OpenAL Soft with OpenSL backend for audio</string>  
+</resources>  
