@@ -6,9 +6,6 @@
     <uses-feature
         android:name="android.hardware.type.pc"
         android:required="false" />
-    <uses-feature
-        android:name="android.hardware.usb.host"
-        android:required="false" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission
@@ -23,7 +20,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
-    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <application
         android:name="net.kdt.pojavlaunch.PojavApplication"
@@ -63,6 +59,8 @@
         <activity
             android:name="net.kdt.pojavlaunch.LauncherActivity"
             android:label="@string/app_short_name"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode"
+            android:screenOrientation="sensorLandscape"
             android:windowSoftInputMode="adjustResize"/>
         <activity
             android:name="net.kdt.pojavlaunch.ImportControlActivity"
@@ -97,7 +95,7 @@
             android:theme="@style/Theme.AppCompat.DayNight.Dialog" />
         <activity
             android:process=":gui_installer"
-            android:name="net.kdt.pojavlaunch.awt.AWTActivity"
+            android:name="net.kdt.pojavlaunch.JavaGUILauncherActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode"
             android:screenOrientation="sensorLandscape" />
         <activity
@@ -112,7 +110,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="net.kdt.pojavlaunch.game.GameActivity"
+            android:name="net.kdt.pojavlaunch.MainActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode"
             android:launchMode="singleTop"
             android:process=":game"
@@ -141,8 +139,5 @@
         <package android:name="git.mojo.ffmpeg"/>
         <package android:name="git.mojo.angle"/>
         <package android:name="git.mojo.zink"/>
-        <package android:name="git.artdeell.mojo"/>
-        <package android:name="git.artdeell.mojo.debug"/>
-        <package android:name="git.artdeell.mojo.pub"/>
     </queries>
 </manifest>
