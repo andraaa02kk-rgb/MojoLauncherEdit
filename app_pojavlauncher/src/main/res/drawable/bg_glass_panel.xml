@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/glass_panel_fill" />
+    <stroke
+        android:width="@dimen/glass_border_width"
+        android:color="@color/glass_panel_border" />
+    <corners android:radius="@dimen/corner_radius_panel" />
+</shape>
